@@ -140,7 +140,7 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
     public void releaseResource() throws ProcessingException {
         if (httpClient != null) {
             try {
-                httpClient.close();
+                //httpClient.close(); // TODO: Java 21
             } catch (RuntimeException e) {
                 // NOP
             }
