@@ -1,8 +1,7 @@
 /*
  * build.gradle
  *
- * Copyright by toolarium-processing-unit-collection, all rights reserved.
- * MIT License: https://mit-license.org
+ * Copyright by toolarium, all rights reserved.
  */
 apply from: "https://raw.githubusercontent.com/toolarium/common-gradle-build/master/gradle/common.gradle"
 
@@ -11,11 +10,16 @@ apply from: "https://raw.githubusercontent.com/toolarium/common-gradle-build/mas
  * Define project dependencies
  ****************************************************************************************/
 dependencies {
-    // see https://docs.gradle.org/current/userguide/java_library_plugin.html
 
-    // utilities
-    //implementation "net.sf.jptools:jptools:${commonGradleJptoolsVersion}"
-    //implementation "net.sf.jptools:jptools:${commonGradleJptoolsVersion}:slf4j-redirect"
+    // toolarium common
+    implementation "com.github.toolarium:toolarium-common:0.8.0"
+    implementation "com.github.toolarium:toolarium-security:1.1.2"
+
+    // processing unit
+    implementation "com.github.toolarium:toolarium-processing-unit:1.2.1"
+
+    // http server for test purpose
+    testRuntimeOnly "com.github.toolarium:toolarium-network:1.0.1"
 
     // logging
     implementation "org.slf4j:slf4j-api:${commonGradleSlf4jApiVersion}"
