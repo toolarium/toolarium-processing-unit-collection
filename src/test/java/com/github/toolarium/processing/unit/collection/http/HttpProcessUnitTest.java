@@ -61,7 +61,7 @@ public class HttpProcessUnitTest {
         List<Parameter> parameterList = new ArrayList<Parameter>();
         //parameterList.add(new Parameter("keyNames", "name1", "name2"));
 
-        TestProcessingUnitRunner<HttpProcessingUnit> processRunner = TestProcessingUnitRunnerFactory.getInstance().getProcessingUnitRunner();
+        TestProcessingUnitRunner processRunner = TestProcessingUnitRunnerFactory.getInstance().getProcessingUnitRunner();
         assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
 
         assertEquals(processRunner.getSuspendCounter(), 0);

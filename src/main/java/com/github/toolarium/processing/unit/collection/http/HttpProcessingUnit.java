@@ -8,9 +8,7 @@ package com.github.toolarium.processing.unit.collection.http;
 
 import com.github.toolarium.common.util.ThreadUtil;
 import com.github.toolarium.processing.unit.IProcessingUnit;
-import com.github.toolarium.processing.unit.IProcessingUnitContext;
 import com.github.toolarium.processing.unit.IProcessingUnitPersistence;
-import com.github.toolarium.processing.unit.IProcessingUnitProgress;
 import com.github.toolarium.processing.unit.IProcessingUnitStatus;
 import com.github.toolarium.processing.unit.ProcessingUnitStatusBuilder;
 import com.github.toolarium.processing.unit.base.AbstractProcessingUnitPersistenceImpl;
@@ -82,23 +80,21 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
         httpRequest = HttpProcessingUnitUtil.getInstance().getHttpRequest(getParameterRuntime(), requestUri);
     }
 
-    
+
     /**
-     * @see com.github.toolarium.processing.unit.base.AbstractProcessingUnitImpl#estimateNumberOfUnitsToProcess(com.github.toolarium.processing.unit.IProcessingUnitContext)
+     * @see com.github.toolarium.processing.unit.base.AbstractProcessingUnitImpl#estimateNumberOfUnitsToProcess()
      */
     @Override
-    public long estimateNumberOfUnitsToProcess(IProcessingUnitContext processingUnitContext) throws ProcessingException {
+    public long estimateNumberOfUnitsToProcess() throws ProcessingException {
         return getParameterRuntime().getParameterValueList(NUMBER_OF_CALLS_PARAMTER).getValueAsInteger();
     }
 
-    
+
     /**
-     * @see com.github.toolarium.processing.unit.IProcessingUnit#processUnit(com.github.toolarium.processing.unit.IProcessingUnitProgress, com.github.toolarium.processing.unit.IProcessingUnitContext)
+     * @see com.github.toolarium.processing.unit.base.AbstractProcessingUnitImpl#processUnit(com.github.toolarium.processing.unit.ProcessingUnitStatusBuilder)
      */
     @Override
-    public IProcessingUnitStatus processUnit(IProcessingUnitProgress processingProgress, IProcessingUnitContext processingUnitContext) throws ProcessingException {
-        ProcessingUnitStatusBuilder processingUnitStatusBuilder = new ProcessingUnitStatusBuilder(); 
-
+    public IProcessingUnitStatus processUnit(ProcessingUnitStatusBuilder processingUnitStatusBuilder) throws ProcessingException {
         HttpResponse<String> response;
         try {
             response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
@@ -116,9 +112,9 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
 
         } catch (InterruptedException | IOException e) {
             LOG.warn("Error occured: " + e.getMessage(), e);
-            processingUnitStatusBuilder.processingUnitFailed();
+            processingUnitStatusBuilder.increaseNumberOfSuccessfulUnits();
         } finally {
-            processingUnitStatusBuilder.processedSuccessful();
+            processingUnitStatusBuilder.increaseNumberOfFailedUnits();
         }
 
         // During a processing step status message can be returned, a status SUCCESSFUL, WARN or ERROR. Additional a message can be set
@@ -129,7 +125,7 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
         // Support of statistic:
         //processingUnitStatusBuilder.statistic("counter", 1);
         
-        return processingUnitStatusBuilder.hasNext(processingProgress).build();
+        return processingUnitStatusBuilder.hasNextIfHasUnprocessedUnits().build();
     }
 
     
