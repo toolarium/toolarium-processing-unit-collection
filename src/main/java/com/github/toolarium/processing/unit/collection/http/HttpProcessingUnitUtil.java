@@ -8,6 +8,7 @@ package com.github.toolarium.processing.unit.collection.http;
 import com.github.toolarium.processing.unit.exception.ValidationException;
 import com.github.toolarium.processing.unit.runtime.IParameterRuntime;
 import com.github.toolarium.security.keystore.util.KeyStoreUtil;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +64,27 @@ public final class HttpProcessingUnitUtil {
 
     
     /**
+     * Initialize the request uri
+     *
+     * @param parameterRuntime the parameter runtime
+     * @return the request uri
+     * @throws ValidationException In case of a validation error
+     */
+    public URI getRequestUri(IParameterRuntime parameterRuntime) throws ValidationException {
+        try {
+            String uri = getRequestUrl(parameterRuntime) + getRequestQueryParameter(parameterRuntime);
+            return URI.create(uri);
+        } catch (RuntimeException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Could not initialize uri: " + e.getMessage(), e);
+            }
+            
+            throw new ValidationException(e.getMessage(), e);
+        }
+    }
+    
+
+    /**
      * Get the request url
      *
      * @param parameterRuntime the parameter runtime
@@ -79,18 +102,20 @@ public final class HttpProcessingUnitUtil {
             
             final String domain = parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.DOMAIN_PARAMETER).getValueAsString().trim();
             final Integer port = parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.PORT_PARAMETER).getValueAsInteger();
+            
             String portStr = "";
-            if (port < 0) {
+            if (port > 0) {
                 portStr = ":" + port;
             }
             
             final String path = parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.PATH_PARAMETER).getValueAsString().trim();
-            return protocol + domain + portStr + path;
+            String result = protocol + domain + portStr + path;
+            LOG.debug("Set url: " + result);
+            return result;
         }
     }
 
     
-
     /**
      * Get the request query parameter
      *
@@ -100,33 +125,22 @@ public final class HttpProcessingUnitUtil {
     public String getRequestQueryParameter(IParameterRuntime parameterRuntime) {
         String requestQuery = parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER).getValueAsString().trim();
         if (requestQuery != null && !requestQuery.isBlank()) {
-            return "?" + URLEncoder.encode(requestQuery, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            String queryParameter = "?";
+
+            if (parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.ENCODE_REQUEST_QUERY_PARAMETER).getValueAsBoolean()) {
+                queryParameter += URLEncoder.encode(requestQuery, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            } else {
+                queryParameter += requestQuery;
+            }
+
+            LOG.debug("Set query parameter: " + queryParameter);
+            return queryParameter;
         }
 
         return "";
     }
 
     
-    /**
-     * Initialize the request uri
-     *
-     * @param parameterRuntime the parameter runtime
-     * @return the request uri
-     * @throws ValidationException In case of a validation error
-     */
-    public URI getRequestUri(IParameterRuntime parameterRuntime) throws ValidationException {
-        try {
-            return URI.create(getRequestUrl(parameterRuntime) + getRequestQueryParameter(parameterRuntime));
-        } catch (RuntimeException e) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Could not initialize uri: " + e.getMessage(), e);
-            }
-            
-            throw new ValidationException(e.getMessage(), e);
-        }
-    }
-    
-
     /**
      * Get the request query parameter
      *
@@ -140,6 +154,7 @@ public final class HttpProcessingUnitUtil {
             httpVersion = HttpClient.Version.HTTP_1_1;
         }
         
+        LOG.debug("Set http version: " + httpVersion);
         return httpVersion;
     }
 
@@ -158,6 +173,9 @@ public final class HttpProcessingUnitUtil {
             // TODO:
         }
         
+        if (!list.isEmpty()) {
+            LOG.debug("Set request headers: " + list);
+        }
         return list.stream().toArray(String[]::new);
     }
 
@@ -172,12 +190,24 @@ public final class HttpProcessingUnitUtil {
     public SSLContext getSSLContext(IParameterRuntime parameterRuntime) throws ValidationException {
         SSLContext sslContext = null;
         try {
-            sslContext = SSLContext.getDefault();
+            //sslContext = SSLContext.getDefault();
+            sslContext = SSLContext.getInstance("TLS");
             
+            TrustManager[] trustManager = null;
             if (!parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.VERIFY_CERTIFICATE_PARAMETER).getValueAsBoolean()) {
-                sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, KeyStoreUtil.getInstance().getTrustAllCertificateManager(), SecureRandom.getInstanceStrong()); 
+                trustManager = KeyStoreUtil.getInstance().getTrustAllCertificateManager(); 
+            } else {
+                /*
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                try {
+                    tmf.init(KeyStoreUtil.getInstance().getDefaultTrustKeyStore());
+                    trustManager = tmf.getTrustManagers();                
+                } catch (GeneralSecurityException | IOException e) {
+                    LOG.warn("Error occured: " + e.getMessage(), e);
+                }
+                */
             }
+            sslContext.init(null, trustManager, SecureRandom.getInstanceStrong()); 
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Could not initialize ssl context: " + e.getMessage(), e);
@@ -222,6 +252,7 @@ public final class HttpProcessingUnitUtil {
                     .sslContext(sslContext)
                     //.sslParameters(null)
                     .version(getHttpVersion(parameterRuntime))
+                    .proxy(ProxySelector.getDefault())
                     .build();
         } else {
             httpClient = HttpClient.newBuilder()
@@ -232,6 +263,7 @@ public final class HttpProcessingUnitUtil {
                     //.localAddress(null)
                     //.priority(0)
                     .version(getHttpVersion(parameterRuntime))
+                    .proxy(ProxySelector.getDefault())
                     .build();
         }
 
@@ -249,22 +281,38 @@ public final class HttpProcessingUnitUtil {
      */
     public HttpRequest getHttpRequest(IParameterRuntime parameterRuntime, URI requestUri) throws ValidationException {
         String requestMethod = parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_METHOD_PARAMETER).getValueAsString().trim();
-        BodyPublisher requestBody = null;
-        if (requestMethod.equalsIgnoreCase("GET") || requestMethod.equalsIgnoreCase("DELETE")) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder();
+        builder.uri(requestUri);
+      
+        //BodyPublisher requestBody = HttpRequest.BodyPublishers.ofString("");
+
+        if (requestMethod.equalsIgnoreCase("GET")) {
+            builder.GET();
+        } else if (requestMethod.equalsIgnoreCase("DELETE")) {
+            builder.DELETE();
+        } else if (requestMethod.equalsIgnoreCase("POST")) {
+            BodyPublisher requestBody = HttpRequest.BodyPublishers.ofString(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER).getValueAsString().trim()); 
+            builder.POST(requestBody);
+        } else if (requestMethod.equalsIgnoreCase("PUT")) {
+            BodyPublisher requestBody = HttpRequest.BodyPublishers.ofString(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER).getValueAsString().trim()); 
+            builder.PUT(requestBody);
+        } else {
+            BodyPublisher requestBody = HttpRequest.BodyPublishers.ofString(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER).getValueAsString().trim()); 
             requestMethod = requestMethod.toUpperCase();
-        } else if (requestMethod.equalsIgnoreCase("POST") || requestMethod.equalsIgnoreCase("PUT") || requestMethod.equalsIgnoreCase("PATCH")) {
-            requestMethod = requestMethod.toUpperCase();
-            requestBody = HttpRequest.BodyPublishers.ofString(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER).getValueAsString().trim()); 
+            builder.method(requestMethod, requestBody);
+        }
+
+        String[] headers = HttpProcessingUnitUtil.getInstance().getRequestHeaders(parameterRuntime);
+        if (headers != null && headers.length > 0) {
+            builder.headers(headers);
         }
         
-        return HttpRequest.newBuilder()
-                .method(requestMethod, requestBody)
-                .uri(requestUri)
-                .headers(HttpProcessingUnitUtil.getInstance().getRequestHeaders(parameterRuntime))
-                .timeout(Duration.ofSeconds(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.TIMEOUT_PARAMTER).getValueAsInteger()))
-                .version(HttpProcessingUnitUtil.getInstance().getHttpVersion(parameterRuntime))
-                .build();
-    
+        Duration duration = Duration.ofSeconds(parameterRuntime.getParameterValueList(HttpProcessingUnitConstants.TIMEOUT_PARAMTER).getValueAsInteger());
+        if (duration != null) {
+            builder.timeout(duration);
+        }
+        
+        return builder.version(HttpProcessingUnitUtil.getInstance().getHttpVersion(parameterRuntime)).build();
     }
     
     /*

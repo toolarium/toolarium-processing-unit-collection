@@ -17,13 +17,13 @@ import com.github.toolarium.processing.unit.dto.ParameterDefinition;
 public interface HttpProcessingUnitConstants {
     
     /** PROTOCOL_PARAMETER: the protocol parameter. It is optional. */
-    ParameterDefinition PROTOCOL_PARAMETER = new ParameterDefinitionBuilder().name("protocol").defaultValue("http").description("The protocol (default: https).").build();
+    ParameterDefinition PROTOCOL_PARAMETER = new ParameterDefinitionBuilder().name("protocol").defaultValue("https").description("The protocol (default: https).").build();
     
     /** DOMAIN_PARAMETER: the domain parameter. It is optional. */
     ParameterDefinition DOMAIN_PARAMETER = new ParameterDefinitionBuilder().name("domain").defaultValue("localhost").description("The domain (default: localhost).").build();
 
     /** PORT_PARAMETER: the port parameter. It is optional. */
-    ParameterDefinition PORT_PARAMETER = new ParameterDefinitionBuilder().name("port").defaultValue(8080).description("The port (default: 8080).").build();
+    ParameterDefinition PORT_PARAMETER = new ParameterDefinitionBuilder().name("port").defaultValue(443).description("The port (default: 443).").build();
 
     /** PATH_PARAMETER: the path parameter. It is optional. */
     ParameterDefinition PATH_PARAMETER = new ParameterDefinitionBuilder().name("path").defaultValue("/").description("The path (default: /).").build();
@@ -42,6 +42,9 @@ public interface HttpProcessingUnitConstants {
 
     /** REQUEST_QUERY_PARAMETER: the method parameter. */
     ParameterDefinition REQUEST_QUERY_PARAMETER = new ParameterDefinitionBuilder().name("query").defaultValue("").emptyValueIsAllowed().description("The request query parameter (default is empty).").build();
+
+    /** ENCODE_REQUEST_QUERY_PARAMETER: the method parameter. */
+    ParameterDefinition ENCODE_REQUEST_QUERY_PARAMETER = new ParameterDefinitionBuilder().name("encodeQuery").defaultValue("false").emptyValueIsAllowed().description("Define if the request parameter should be encoded (default false).").build();
 
     /** REQUESTR_HEADER_PARAMETER: the header parameter. */
     ParameterDefinition REQUESTR_HEADER_PARAMETER = new ParameterDefinitionBuilder().name("header").emptyValueIsAllowed().maxOccurs(Integer.MAX_VALUE).description("The request header parameter.").build();

@@ -68,16 +68,6 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
     @Override
     public void validateParameterList(List<Parameter> parameterList) throws ValidationException {
         super.validateParameterList(parameterList);
-        
-        requestUri = HttpProcessingUnitUtil.getInstance().getRequestUri(getParameterRuntime());
-        
-        SSLContext sslContext = null;
-        if ("https".equals(requestUri.getScheme())) {
-            sslContext = HttpProcessingUnitUtil.getInstance().getSSLContext(getParameterRuntime());
-        }
-        
-        httpClient = HttpProcessingUnitUtil.getInstance().getRequestClient(getParameterRuntime(), sslContext);
-        httpRequest = HttpProcessingUnitUtil.getInstance().getHttpRequest(getParameterRuntime(), requestUri);
     }
 
 
@@ -86,6 +76,17 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
      */
     @Override
     public long estimateNumberOfUnitsToProcess() throws ProcessingException {
+        requestUri = HttpProcessingUnitUtil.getInstance().getRequestUri(getParameterRuntime());
+        
+        SSLContext sslContext = null;
+        if ("https".equals(requestUri.getScheme())) {
+            LOG.debug("Create self signed cert.");        
+            sslContext = HttpProcessingUnitUtil.getInstance().getSSLContext(getParameterRuntime());
+        }
+        
+        httpClient = HttpProcessingUnitUtil.getInstance().getRequestClient(getParameterRuntime(), sslContext);
+        httpRequest = HttpProcessingUnitUtil.getInstance().getHttpRequest(getParameterRuntime(), requestUri);
+
         return getParameterRuntime().getParameterValueList(NUMBER_OF_CALLS_PARAMTER).getValueAsInteger();
     }
 
@@ -96,7 +97,10 @@ public class HttpProcessingUnit extends AbstractProcessingUnitPersistenceImpl<Ht
     @Override
     public IProcessingUnitStatus processUnit(ProcessingUnitStatusBuilder processingUnitStatusBuilder) throws ProcessingException {
         HttpResponse<String> response;
+        
         try {
+            
+            
             response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() == 404) {
