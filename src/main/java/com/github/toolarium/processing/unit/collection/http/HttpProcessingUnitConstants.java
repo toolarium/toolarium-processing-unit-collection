@@ -37,6 +37,10 @@ public interface HttpProcessingUnitConstants {
     /** VERIFY_CERTIFICATE_PARAMETER: the verify certificate parameter in case of a https call. */
     ParameterDefinition VERIFY_CERTIFICATE_PARAMETER = new ParameterDefinitionBuilder().name("verifyCertificate").defaultValue(true).description("The verify certificate parameter in case of a https call (default: true).").build();
 
+    /** TRUST_CERTIFICATE_PARAMETER: the trust certificate parameter in case of a https call. */
+    ParameterDefinition TRUST_CERTIFICATE_PARAMETER = new ParameterDefinitionBuilder().name("trustCertificate")
+            .description("The trust certificate in case of a https call. The certifcate must be in a PKCS#7 format (certificate chains are supported).").build();
+
     /** METHOD_PARAMETER: the method parameter. */
     ParameterDefinition REQUEST_METHOD_PARAMETER = new ParameterDefinitionBuilder().name("method").defaultValue("GET").description("The request method to use (default: GET).").build();
 

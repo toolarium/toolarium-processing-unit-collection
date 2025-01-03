@@ -7,22 +7,18 @@ package com.github.toolarium.processing.unit.collection.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.toolarium.network.server.HttpServerFactory;
 import com.github.toolarium.network.server.IHttpServer;
 import com.github.toolarium.network.server.service.EchoService;
+import com.github.toolarium.processing.unit.collection.http.test.HttpTestProcessingUnitRunner;
 import com.github.toolarium.processing.unit.dto.Parameter;
-import com.github.toolarium.processing.unit.runtime.test.TestProcessingUnitRunner;
-import com.github.toolarium.processing.unit.runtime.test.TestProcessingUnitRunnerFactory;
+import com.github.toolarium.security.certificate.CertificateUtilFactory;
 import com.github.toolarium.security.keystore.ISecurityManagerProvider;
 import com.github.toolarium.security.keystore.SecurityManagerProviderFactory;
+import com.github.toolarium.security.pki.KeyConverterFactory;
 import com.github.toolarium.security.ssl.SSLContextFactory;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import javax.net.ssl.SSLContext;
@@ -38,10 +34,199 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpProcessUnitTest {
     private static final Logger LOG = LoggerFactory.getLogger(HttpProcessUnitTest.class);
-    /*// debug
-    static {
-     System.setProperty("jdk.internal.httpclient.debug", "true");
-    }*/
+    private static int port = 8080;
+
+    
+    /**
+     * Http processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void getHttpProcessingTest() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PROTOCOL_PARAMETER.getKey(), "http")); // default is https
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/echo"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST1"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("echo", persistence.pop());
+        assertEquals(0, persistence.getSize());
+        
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
+
+    
+    /**
+     * Http processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void getHttpProcessingTestWithNoEchoPath() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PROTOCOL_PARAMETER.getKey(), "http")); // default is https
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST2"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("", persistence.pop());
+        assertEquals(0, persistence.getSize());
+        
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
+
+    
+    /**
+     * Http processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void postHttpProcessingTest() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PROTOCOL_PARAMETER.getKey(), "http")); // default is https
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/echo"));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_METHOD_PARAMETER.getKey(), "POST"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST3"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("TEST3", persistence.pop());
+        assertEquals(0, persistence.getSize());
+        
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
+
+    
+    /**
+     * Https processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void getHttpsProcessingTest() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/echo"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.VERIFY_CERTIFICATE_PARAMETER.getKey(), "false"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST4"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("echo", persistence.pop());
+        assertEquals(0, persistence.getSize());
+
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
+
+    
+    /**
+     * Http processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void getHttpsProcessingTestWithNoEchoPath() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.VERIFY_CERTIFICATE_PARAMETER.getKey(), "false"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST5"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("", persistence.pop());
+        assertEquals(0, persistence.getSize());
+        
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
+
+    
+    /**
+     * Http processing test
+     *
+     * @throws Exception In case of an exception
+     */
+    @Test
+    public void postHttpsProcessingTest() throws Exception {
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/echo"));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_METHOD_PARAMETER.getKey(), "POST"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.VERIFY_CERTIFICATE_PARAMETER.getKey(), "false"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST6"));
+        
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("TEST6", persistence.pop());
+        assertEquals(0, persistence.getSize());
+        
+        LOG.debug(processRunner.toString());
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
+        assertNotNull(processRunner.getStatusMessageList());
+    }
 
     
     /**
@@ -50,40 +235,42 @@ public class HttpProcessUnitTest {
      * @throws Exception In case of an exception
      */
     @Test
-    public void simpleGetRequestTest() throws Exception {
-        int port = 8081;
-        
+    public void simpleGetLocalServer() throws Exception {
+        //System.setProperty("jdk.internal.httpclient.debug", "true");
+
         // create self signed certificate
-        ISecurityManagerProvider securityManagerProvider = SecurityManagerProviderFactory.getInstance().getSecurityManagerProvider("toolarium", "changit");        
-        assertNotNull(securityManagerProvider);
-
-        // get ssl context from factory
+        final ISecurityManagerProvider securityManagerProvider = SecurityManagerProviderFactory.getInstance().getSecurityManagerProvider("toolarium", "changit");
         SSLContext sslContext = SSLContextFactory.getInstance().createSslContext(securityManagerProvider);
-
-        // create server
-        IHttpServer server = HttpServerFactory.getInstance().getServerInstance();
-        server.start(new EchoService(), port, sslContext);
-        Thread.sleep(100L);
+        final IHttpServer httpServer = HttpServerFactory.getInstance().getServerInstance();
+        httpServer.start(new EchoService(), 8084, sslContext);
 
         List<Parameter> parameterList = new ArrayList<Parameter>();
-        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + port));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.PROTOCOL_PARAMETER.getKey(), "https")); // default
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "" + ++port));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/echo"));
+        //parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
         parameterList.add(new Parameter(HttpProcessingUnitConstants.VERIFY_CERTIFICATE_PARAMETER.getKey(), "false"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_METHOD_PARAMETER.getKey(), "POST"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_BODY_PARAMETER.getKey(), "TEST7"));
         
-        //parameterList.add(new Parameter(HttpProcessingUnit.REQUEST_METHOD_PARAMETER.getKey(), "GET"));
-        TestProcessingUnitRunner processRunner = TestProcessingUnitRunnerFactory.getInstance().getProcessingUnitRunner();
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
         assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
 
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertEquals("TEST7", persistence.pop());
+        assertEquals(0, persistence.getSize());
+
+        LOG.debug(processRunner.toString());
         assertEquals(processRunner.getSuspendCounter(), 0);
         assertNotNull(processRunner.getProcessingUnitProgress());
         assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
         assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
-        //assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); 
         assertNotNull(processRunner.getStatusMessageList());
-        
-        server.stop();
     }
 
-    
+
     /**
      * Echo test
      *
@@ -92,65 +279,59 @@ public class HttpProcessUnitTest {
     @Test
     public void simpleGetFromGoogle() throws Exception {
         //System.setProperty("jdk.internal.httpclient.debug", "true");
-
         List<Parameter> parameterList = new ArrayList<Parameter>();
-        //parameterList.add(new Parameter(HttpProcessingUnitConstants.PROTOCOL_PARAMETER.getKey(), "https")); // default
-        //parameterList.add(new Parameter(HttpProcessingUnitConstants.PORT_PARAMETER.getKey(), "443")); // default
         parameterList.add(new Parameter(HttpProcessingUnitConstants.DOMAIN_PARAMETER.getKey(), "www.google.com"));
         parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/search"));
         parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
-        
+
         //https://www.google.com/search?q=dd
-        //parameterList.add(new Parameter(HttpProcessingUnit.REQUEST_METHOD_PARAMETER.getKey(), "GET"));
-        TestProcessingUnitRunner processRunner = TestProcessingUnitRunnerFactory.getInstance().getProcessingUnitRunner();
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
         assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertTrue(persistence.pop().indexOf("<html") > 0);
+        assertEquals(0, persistence.getSize());
 
         assertEquals(processRunner.getSuspendCounter(), 0);
         assertNotNull(processRunner.getProcessingUnitProgress());
         assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
         assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
-        // assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0); // TODO:
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0);
         assertNotNull(processRunner.getStatusMessageList());
     }
 
-    
 
     /**
-     * Test Echo server
+     * Echo test
      *
-     * @throws Exception In case of an error
+     * @throws Exception In case of an exception
      */
     @Test
-    public void echoSSLTest() throws Exception {
-        int port = 8082;
-        
-        // create self signed certificate
-        ISecurityManagerProvider securityManagerProvider = SecurityManagerProviderFactory.getInstance().getSecurityManagerProvider("toolarium", "changit");
-        assertNotNull(securityManagerProvider);
+    public void simpleGetFromGoogleWithOwnTrustCertificate() throws Exception {
+        //System.setProperty("jdk.internal.httpclient.debug", "true");
+        List<Parameter> parameterList = new ArrayList<Parameter>();
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.DOMAIN_PARAMETER.getKey(), "www.google.com"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.PATH_PARAMETER.getKey(), "/search"));
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.REQUEST_QUERY_PARAMETER.getKey(), "q=abc"));
 
-        // get ssl context from factory
-        SSLContext sslContext = SSLContextFactory.getInstance().createSslContext(securityManagerProvider);
+        String trustCertificate = KeyConverterFactory.getInstance().getConverter().formatPKCS7(CertificateUtilFactory.getInstance().getGenerator().createCreateCertificate("toolarium").getCertificates());
+        parameterList.add(new Parameter(HttpProcessingUnitConstants.TRUST_CERTIFICATE_PARAMETER.getKey(), trustCertificate));
 
-        IHttpServer server = HttpServerFactory.getInstance().getServerInstance();
-        server.start(new EchoService(), port, sslContext);
-        Thread.sleep(100L);
-        
-        LOG.debug("Server hostname: " + server.getHttpServerInformation().getHostname());
-        HttpRequest request = HttpRequest
-                .newBuilder(URI.create("https://localhost" + ":" + port)) //  + server.getHttpServerInformation().getHostname()
-                .GET()
-                .build();
-        
-        HttpResponse<String> response = HttpClient
-                .newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .connectTimeout(Duration.ofSeconds(10))
-                .sslContext(sslContext)
-                .build()
-                .send(request, BodyHandlers.ofString());
-        
-        LOG.debug("Response: " + response.body());
-        server.stop();
+        //https://www.google.com/search?q=dd
+        HttpTestProcessingUnitRunner processRunner = new HttpTestProcessingUnitRunner();
+        assertEquals(processRunner.run(HttpProcessingUnit.class, parameterList), 1);
+
+        HttpProcessingUnit.HttpResultPersistence persistence = processRunner.getProcessingPersistence();
+        assertEquals(1, persistence.getSize());
+        assertTrue(persistence.pop().indexOf("<html") > 0);
+        assertEquals(0, persistence.getSize());
+
+        assertEquals(processRunner.getSuspendCounter(), 0);
+        assertNotNull(processRunner.getProcessingUnitProgress());
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfUnitsToProcess(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfProcessedUnits(), 1);
+        assertEquals(processRunner.getProcessingUnitProgress().getNumberOfFailedUnits(), 0);
+        assertNotNull(processRunner.getStatusMessageList());
     }
-    
 }
